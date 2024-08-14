@@ -37,6 +37,10 @@
 
 #include <signal.h>
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
+
 #ifndef _WIN32
 #include <sys/syscall.h>
 #endif
@@ -288,7 +292,17 @@ static int mk_sched_register_thread(struct mk_server *server)
     worker->pid = syscall(__NR_gettid);
 #elif defined(__APPLE__)
     uint64_t tid;
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1060 || defined(__POWERPC__)
+    tid = pthread_mach_thread_np(pthread_self());
+#elif MAC_OS_X_VERSION_MIN_REQUIRED < 1060
+    if (&pthread_threadid_np != NULL) {
+        pthread_threadid_np(NULL, &tid);
+    } else {
+        tid = pthread_mach_thread_np(pthread_self());
+    }
+#else
     pthread_threadid_np(NULL, &tid);
+#endif
     worker->pid = tid;
 #else
     worker->pid = 0xdeadbeef;
